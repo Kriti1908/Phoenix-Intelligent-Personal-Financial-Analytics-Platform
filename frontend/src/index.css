@@ -120,9 +120,17 @@ body {
   margin: 16px 0;
 }
 
-.fhs-score.good { color: var(--accent-green); }
-.fhs-score.warning { color: var(--accent-amber); }
-.fhs-score.poor { color: var(--accent-red); }
+.fhs-score.good {
+  color: var(--accent-green);
+}
+
+.fhs-score.warning {
+  color: var(--accent-amber);
+}
+
+.fhs-score.poor {
+  color: var(--accent-red);
+}
 
 .stat-value {
   font-size: 32px;
@@ -147,8 +155,15 @@ body {
 }
 
 @keyframes slideIn {
-  from { transform: translateY(-20px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 .budget-bar {
@@ -175,9 +190,17 @@ body {
   transition: width 0.5s ease;
 }
 
-.budget-bar-fill.ok { background: var(--accent-green); }
-.budget-bar-fill.warning { background: var(--accent-amber); }
-.budget-bar-fill.over { background: var(--accent-red); }
+.budget-bar-fill.ok {
+  background: var(--accent-green);
+}
+
+.budget-bar-fill.warning {
+  background: var(--accent-amber);
+}
+
+.budget-bar-fill.over {
+  background: var(--accent-red);
+}
 
 .transactions-table {
   width: 100%;
@@ -231,6 +254,7 @@ body {
   font-size: 28px;
   background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
@@ -297,5 +321,208 @@ body {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── Modal ────────────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.15s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 32px;
+  width: 460px;
+  max-width: calc(100vw - 32px);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.2s ease;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+
+.modal-close:hover {
+  background: var(--border);
+  color: var(--text-primary);
+}
+
+/* ── Drag-and-Drop Zone ───────────────────────────────────────────── */
+.dropzone {
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  padding: 40px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: var(--bg-secondary);
+  margin-bottom: 8px;
+}
+
+.dropzone:hover,
+.dropzone.active {
+  border-color: var(--accent-primary);
+  background: rgba(99, 102, 241, 0.08);
+}
+
+/* ── Upload Progress ──────────────────────────────────────────────── */
+.progress-track {
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+/* ── Empty State ──────────────────────────────────────────────────── */
+.empty-state {
+  text-align: center;
+  padding: 72px 32px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.empty-state-icon {
+  font-size: 56px;
+  margin-bottom: 16px;
+}
+
+.empty-state h2 {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.empty-state p {
+  color: var(--text-secondary);
+  margin-bottom: 28px;
+  font-size: 15px;
+}
+
+/* ── Secondary Button ─────────────────────────────────────────────── */
+.btn-secondary {
+  padding: 10px 20px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.btn-secondary:hover {
+  background: var(--border);
+  border-color: var(--accent-primary);
+}
+
+/* ── Form Select ──────────────────────────────────────────────────── */
+.form-select {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 14px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.form-select:focus {
+  border-color: var(--accent-primary);
+}
+
+/* ── Budget Row Card ──────────────────────────────────────────────── */
+.budget-row-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.budget-row-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(99, 102, 241, 0.12);
+}
+
+/* ── Badge Chips ──────────────────────────────────────────────────── */
+.badge-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.warning-chip {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: var(--accent-amber);
+  color: var(--accent-amber);
 }

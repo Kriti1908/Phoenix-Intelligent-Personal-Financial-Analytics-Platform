@@ -73,6 +73,8 @@ services:
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
       JWT_ACCESS_EXPIRE_MINUTES: 60
       JWT_REFRESH_EXPIRE_DAYS: 30
+    ports:
+      - "8001:8001"
     depends_on:
       postgres: { condition: service_healthy }
     networks: [phoenix_net]
