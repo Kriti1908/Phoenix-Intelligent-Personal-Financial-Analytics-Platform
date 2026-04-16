@@ -1,6 +1,6 @@
 """SQLAlchemy models for the Auth Service."""
 
-from sqlalchemy import Column, String, DateTime, text
+from sqlalchemy import Column, String, DateTime, text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase
 from datetime import datetime
@@ -20,6 +20,6 @@ class User(Base):
     password_hash = Column(String, nullable=False)
     role = Column(String, nullable=False, server_default="USER")
     encryption_key_ref = Column(String, nullable=False)
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
-    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     deleted_at = Column(DateTime(timezone=True), nullable=True)

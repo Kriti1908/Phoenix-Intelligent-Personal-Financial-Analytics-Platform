@@ -1,7 +1,10 @@
 """Ingestion Router — endpoints for CSV upload, manual entry, bank API, and transaction listing."""
 
 import logging
+import io
+import csv
 from fastapi import APIRouter, Depends, HTTPException, Header, UploadFile, File, Form, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy import select, func, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -190,3 +193,48 @@ async def list_transactions(
         page=page,
         page_size=page_size,
     )
+
+
+@router.get("/export")
+async def export_transactions(
+    x_user_id: str = Header(None, alias="X-User-ID"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Export all transactions for the user as CSV."""
+    if not x_user_id:
+        raise HTTPException(status_code=401, detail="User ID not provided")
+
+    from sqlalchemy import text as sa_text
+
+    sql = (
+        "SELECT t.ts, t.amount, t.currency, t.merchant_name, t.raw_description, c.name AS category_name "
+        "FROM transactions t "
+        "LEFT JOIN transaction_categories tc ON t.id = tc.transaction_id "
+        "LEFT JOIN categories c ON tc.category_id = c.id "
+        "WHERE t.user_id = :user_id "
+        "ORDER BY t.ts DESC"
+    )
+    result = await db.execute(sa_text(sql), {"user_id": x_user_id})
+    rows = result.fetchall()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Date", "Amount", "Currency", "Merchant", "Description", "Category"])
+
+    for row in rows:
+        writer.writerow([
+            row.ts.strftime("%Y-%m-%d %H:%M:%S") if row.ts else "",
+            float(row.amount),
+            row.currency,
+            row.merchant_name or "",
+            row.raw_description or "",
+            row.category_name or "Uncategorized"
+        ])
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=transactions_export.csv"}
+    )
+

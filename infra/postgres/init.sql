@@ -140,6 +140,18 @@ $$;
 CREATE TRIGGER audit_log_no_update BEFORE UPDATE ON audit_log FOR EACH ROW EXECUTE FUNCTION audit_log_immutable();
 CREATE TRIGGER audit_log_no_delete BEFORE DELETE ON audit_log FOR EACH ROW EXECUTE FUNCTION audit_log_immutable();
 
+-- ── Notification Preferences ─────────────────────────────────────────────────
+CREATE TABLE notification_preferences (
+    user_id            UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    category_id        INT  NOT NULL REFERENCES categories(id),
+    email_enabled      BOOLEAN NOT NULL DEFAULT true,
+    push_enabled       BOOLEAN NOT NULL DEFAULT true,
+    websocket_enabled  BOOLEAN NOT NULL DEFAULT true,
+    created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (user_id, category_id)
+);
+
 -- Row-Level Security: users can only access their own data
 ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY user_isolation ON transactions USING (user_id = current_setting('app.current_user_id', true)::UUID);

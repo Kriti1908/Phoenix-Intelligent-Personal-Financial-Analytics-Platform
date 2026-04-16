@@ -67,9 +67,9 @@ The `/analytics/trends` endpoint and `TrendAnalyzer` processor exist, but no cha
 ### 8. User Profile & Settings
 No way for users to view/edit their profile or configure preferences.
 
-- [ ] **Create Settings page** — display name, email, change password
-- [ ] **Notification preferences** — toggle email/push/WebSocket alerts per category
-- [ ] **Data export** — download transactions as CSV
+- [x] **Create Settings page** — display name, email, change password
+- [x] **Notification preferences** — toggle email/push/WebSocket alerts per category
+- [x] **Data export** — download transactions as CSV
 
 ---
 
