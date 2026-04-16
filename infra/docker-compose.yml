@@ -93,8 +93,7 @@ services:
       ANALYTICS_ENGINE_URL: http://phoenix-analytics:8003
       NOTIFICATION_BACKEND: rest
       NOTIFICATION_OBSERVERS: >
-        http://phoenix-anomaly:8004/internal/events/analytics-complete,
-        http://phoenix-analytics:8003/internal/cache-invalidate
+        http://phoenix-analytics:8003/internal/trigger
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -109,6 +108,7 @@ services:
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       CLICKHOUSE_URL: http://clickhouse:8123
       CLICKHOUSE_DB: phoenix
+      ANOMALY_SERVICE_URL: http://phoenix-anomaly:8004
       ENABLE_LLM_CATEGORIZATION: ${ENABLE_LLM_CATEGORIZATION:-false}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       LLM_CONFIDENCE_THRESHOLD: "0.7"

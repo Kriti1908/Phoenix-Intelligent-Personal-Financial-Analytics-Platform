@@ -45,8 +45,9 @@ async def trigger_analytics(
     ch_db = os.getenv("CLICKHOUSE_DB", "phoenix")
     if ch_url:
         ch_writer = ClickHouseWriter(ch_url, ch_db)
+    anomaly_url = os.getenv("ANOMALY_SERVICE_URL")
 
-    service = AnalyticsService(db, redis_client, categorizer, cache_invalidator, ch_writer)
+    service = AnalyticsService(db, redis_client, categorizer, cache_invalidator, ch_writer, anomaly_url)
     result = await service.process_ingestion_event(user_id, transaction_ids)
 
     logger.info(f"Analytics pipeline complete for user {user_id}: {result}")

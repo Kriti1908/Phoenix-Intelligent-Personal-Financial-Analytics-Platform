@@ -3,6 +3,7 @@
 import json
 import logging
 from decimal import Decimal
+import httpx
 from datetime import datetime
 
 from sqlalchemy import select, text, func
@@ -27,12 +28,14 @@ class AnalyticsService:
         categorization_service: CategorizationService,
         cache_invalidator: CacheInvalidator,
         clickhouse_writer: ClickHouseWriter | None = None,
+        anomaly_service_url: str | None = None,
     ):
         self.db = db
         self.redis = redis_client
         self.categorizer = categorization_service
         self.cache_invalidator = cache_invalidator
         self.ch_writer = clickhouse_writer
+        self.anomaly_service_url = anomaly_service_url
         self.fhs_processor = FHSProcessor()
         self.category_aggregator = CategoryAggregator()
         self.trend_analyzer = TrendAnalyzer()
@@ -114,7 +117,27 @@ class AnalyticsService:
                 },
             )
 
+        # 5. Notify Anomaly Detection Service (Observer chain continuation)
+        if self.anomaly_service_url and categorized > 0:
+            await self._notify_anomaly_service(user_id, transaction_ids)
+
         return {"categorized": categorized, "fhs_score": float(fhs_score)}
+
+    async def _notify_anomaly_service(self, user_id: str, transaction_ids: list[str]) -> None:
+        """Forward the analytics-complete event to the Anomaly Detection service."""
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.post(
+                    f"{self.anomaly_service_url}/internal/events/analytics-complete",
+                    json={"user_id": user_id, "transaction_ids": transaction_ids},
+                )
+                logger.info(
+                    f"Anomaly service notified for user {user_id}: "
+                    f"status={resp.status_code}, body={resp.json()}"
+                )
+        except Exception as e:
+            # Non-blocking: anomaly failure must not break analytics pipeline
+            logger.warning(f"Failed to notify anomaly service for user {user_id}: {e}")
 
     async def get_dashboard_overview(self, user_id: str) -> dict:
         """

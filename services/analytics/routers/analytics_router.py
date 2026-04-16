@@ -38,7 +38,7 @@ async def get_analytics_service(
     ch_db = os.getenv("CLICKHOUSE_DB", "phoenix")
     if ch_url:
         ch_writer = ClickHouseWriter(ch_url, ch_db)
-    return AnalyticsService(db, redis_client, categorizer, cache_invalidator, ch_writer)
+    return AnalyticsService(db, redis_client, categorizer, cache_invalidator, ch_writer, anomaly_service_url=None)
 
 
 @router.get("/dashboard/overview")

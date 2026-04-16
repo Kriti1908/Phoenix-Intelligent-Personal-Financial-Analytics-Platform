@@ -17,10 +17,10 @@ After registering, the user lands on an empty Dashboard with no way to get data 
 ### 2. End-to-End Pipeline Wiring (Verify services talk to each other)
 The Observer pattern is implemented and `NOTIFICATION_OBSERVERS` is configured in docker-compose, but the full chain hasn't been verified end-to-end.
 
-- [ ] **Verify Ingestion → Analytics trigger** — `NOTIFICATION_OBSERVERS` in docker-compose points to `phoenix-anomaly` and `phoenix-analytics`, but the Analytics service's `/internal/cache-invalidate` endpoint doesn't trigger categorization; wire it to `/internal/trigger` instead
-- [ ] **Wire Analytics completion → Anomaly Detection** — after analytics runs categorization + FHS, it should call the Anomaly service's `/internal/events/analytics-complete` endpoint (currently not implemented in analytics service)
-- [ ] **Verify Anomaly → Notification push** — partially done (httpx call in anomaly `internal_router`); test the full chain: anomaly detected → WebSocket pushed → frontend shows toast
-- [ ] **Test the full pipeline** — Upload CSV → Ingestion stores → Analytics categorizes + computes FHS → Anomaly checks Z-scores → Notification pushes alert
+- [x] **Verify Ingestion → Analytics trigger** — `NOTIFICATION_OBSERVERS` in docker-compose points to `phoenix-analytics:8003/internal/trigger` to trigger categorization + FHS pipeline
+- [x] **Wire Analytics completion → Anomaly Detection** — after analytics runs categorization + FHS, it calls the Anomaly service's `/internal/events/analytics-complete` endpoint via `ANOMALY_SERVICE_URL`
+- [x] **Verify Anomaly → Notification push** — anomaly `internal_router` calls Notification `/internal/push-alert` → WebSocket push to frontend
+- [x] **Test the full pipeline** — 21 integration tests verify: Upload CSV → Ingestion stores → Analytics categorizes + computes FHS → Anomaly checks Z-scores → Notification pushes alert
 
 ### 3. Dashboard Shows Real Data (Currently shows empty/zeroed out)
 `transaction_categories` seed data exists, but Dashboard Facade queries may still return empty due to missing FHS data and RLS policy interference.
