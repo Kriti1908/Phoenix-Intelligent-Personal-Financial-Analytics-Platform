@@ -33,9 +33,9 @@ The Observer pattern is implemented and `NOTIFICATION_OBSERVERS` is configured i
 ### 4. Transactions Page Shows Categories (Currently missing)
 The Transactions page shows amount/date/description but NOT the category — the most important analytical output.
 
-- [ ] **Add category column** to the Transactions list API response (join `transaction_categories` + `categories`)
-- [ ] **Display category badge** in the Transactions page table (the CSS class `category-badge` exists but isn't used on this page)
-- [ ] **Add search/filter** — filter transactions by category, date range, or amount range
+- [x] **Add category column** to the Transactions list API response (join `transaction_categories` + `categories`)
+- [x] **Display category badge** in the Transactions page table (color-coded per category with icon)
+- [x] **Add search/filter** — filter transactions by category, date range, amount range, and text search
 
 ---
 

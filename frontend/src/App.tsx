@@ -8,16 +8,51 @@ import Recommendations from './pages/Recommendations'
 import Budgets from './pages/Budgets'
 import Login from './pages/Login'
 
+/* ── Inline SVG Icons (no emoji dependency) ──────────────────────── */
+const Icon = {
+  grid: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+      <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+    </svg>
+  ),
+  receipt: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/>
+      <path d="M8 10h8"/><path d="M8 14h4"/>
+    </svg>
+  ),
+  wallet: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/>
+      <path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>
+    </svg>
+  ),
+  lightbulb: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 18h6"/><path d="M10 22h4"/>
+      <path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/>
+    </svg>
+  ),
+  logout: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+      <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+    </svg>
+  ),
+}
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s: AuthState) => s.isAuthenticated)
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" />
 }
 
-function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
+function NavLink({ href, icon, children }: { href: string; icon: React.ReactNode; children: React.ReactNode }) {
   const location = useLocation()
   const isActive = location.pathname === href || (href !== '/' && location.pathname.startsWith(href))
   return (
     <a href={href} className={isActive ? 'active' : ''}>
+      {icon}
       {children}
     </a>
   )
@@ -30,13 +65,19 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="app">
       <aside className="sidebar">
-        <div className="sidebar-logo">🔥 Phoenix</div>
+        <div className="sidebar-logo">
+          <span className="logo-mark">P</span>
+          Phoenix
+        </div>
         <nav className="sidebar-nav">
-          <NavLink href="/">📊 Dashboard</NavLink>
-          <NavLink href="/transactions">💳 Transactions</NavLink>
-          <NavLink href="/budgets">💰 Budgets</NavLink>
-          <NavLink href="/recommendations">💡 Recommendations</NavLink>
-          <a href="#" onClick={(e) => { e.preventDefault(); logout(); }}>🚪 Logout</a>
+          <NavLink href="/" icon={Icon.grid}>Dashboard</NavLink>
+          <NavLink href="/transactions" icon={Icon.receipt}>Transactions</NavLink>
+          <NavLink href="/budgets" icon={Icon.wallet}>Budgets</NavLink>
+          <NavLink href="/recommendations" icon={Icon.lightbulb}>Recommendations</NavLink>
+          <a href="#" onClick={(e) => { e.preventDefault(); logout(); }}>
+            {Icon.logout}
+            Sign Out
+          </a>
         </nav>
       </aside>
       <main className="main-content">

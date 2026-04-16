@@ -99,44 +99,92 @@ async def ingest_bank_api(
 async def list_transactions(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    category: str = Query(None, description="Filter by category name"),
+    date_from: str = Query(None, description="Filter from date (YYYY-MM-DD)"),
+    date_to: str = Query(None, description="Filter to date (YYYY-MM-DD)"),
+    amount_min: float = Query(None, description="Minimum amount"),
+    amount_max: float = Query(None, description="Maximum amount"),
+    search: str = Query(None, description="Search description or merchant"),
     x_user_id: str = Header(None, alias="X-User-ID"),
     db: AsyncSession = Depends(get_db),
 ):
-    """List transactions for the authenticated user with pagination."""
+    """List transactions for the authenticated user with pagination and filters."""
     if not x_user_id:
         raise HTTPException(status_code=401, detail="User ID not provided")
 
+    from sqlalchemy import text as sa_text
+
     offset = (page - 1) * page_size
 
-    # Count total
-    count_result = await db.execute(
-        select(func.count()).select_from(Transaction).where(Transaction.user_id == x_user_id)
+    # Build WHERE clauses
+    conditions = ["t.user_id = :user_id"]
+    params: dict = {"user_id": x_user_id}
+
+    if category:
+        conditions.append("c.name = :category")
+        params["category"] = category
+    if date_from:
+        conditions.append("t.ts >= :date_from::timestamptz")
+        params["date_from"] = date_from
+    if date_to:
+        conditions.append("t.ts <= :date_to::timestamptz + INTERVAL '1 day'")
+        params["date_to"] = date_to
+    if amount_min is not None:
+        conditions.append("ABS(t.amount) >= :amount_min")
+        params["amount_min"] = amount_min
+    if amount_max is not None:
+        conditions.append("ABS(t.amount) <= :amount_max")
+        params["amount_max"] = amount_max
+    if search:
+        conditions.append(
+            "(LOWER(t.raw_description) LIKE :search OR LOWER(t.merchant_name) LIKE :search)"
+        )
+        params["search"] = f"%{search.lower()}%"
+
+    where_clause = " AND ".join(conditions)
+
+    # Count total (with same filters)
+    count_sql = (
+        "SELECT COUNT(*) FROM transactions t "
+        "LEFT JOIN transaction_categories tc ON t.id = tc.transaction_id "
+        "LEFT JOIN categories c ON tc.category_id = c.id "
+        f"WHERE {where_clause}"
     )
+    count_result = await db.execute(sa_text(count_sql), params)
     total = count_result.scalar()
 
-    # Fetch page
-    result = await db.execute(
-        select(Transaction)
-        .where(Transaction.user_id == x_user_id)
-        .order_by(desc(Transaction.ts))
-        .offset(offset)
-        .limit(page_size)
+    # Fetch page with category join
+    fetch_sql = (
+        "SELECT t.id, t.amount, t.currency, t.merchant_name, t.raw_description, "
+        "t.mcc_code, t.ts, t.created_at, c.name AS category_name, c.icon AS category_icon "
+        "FROM transactions t "
+        "LEFT JOIN transaction_categories tc ON t.id = tc.transaction_id "
+        "LEFT JOIN categories c ON tc.category_id = c.id "
+        f"WHERE {where_clause} "
+        "ORDER BY t.ts DESC "
+        "OFFSET :offset LIMIT :page_size"
     )
-    transactions = result.scalars().all()
+    params["offset"] = offset
+    params["page_size"] = page_size
+
+    result = await db.execute(sa_text(fetch_sql), params)
+    rows = result.fetchall()
 
     return TransactionListResponse(
         transactions=[
             TransactionResponse(
-                id=str(t.id),
-                amount=float(t.amount),
-                currency=t.currency,
-                merchant_name=t.merchant_name,
-                raw_description=t.raw_description,
-                mcc_code=t.mcc_code,
-                ts=t.ts,
-                created_at=t.created_at,
+                id=str(row.id),
+                amount=float(row.amount),
+                currency=row.currency,
+                merchant_name=row.merchant_name,
+                raw_description=row.raw_description,
+                mcc_code=row.mcc_code,
+                category_name=row.category_name,
+                category_icon=row.category_icon,
+                ts=row.ts,
+                created_at=row.created_at,
             )
-            for t in transactions
+            for row in rows
         ],
         total=total,
         page=page,

@@ -35,7 +35,10 @@ export default function Login() {
   return (
     <div className="login-container">
       <div className="login-card">
-        <h1>🔥 Phoenix</h1>
+        <h1>
+          <span className="logo-mark">P</span>
+          Phoenix
+        </h1>
         <form onSubmit={handleSubmit}>
           {isRegister && (
             <div className="form-group">
@@ -74,10 +77,10 @@ export default function Login() {
           <button type="submit" className="btn-primary" disabled={loading}>
             {loading ? 'Please wait...' : (isRegister ? 'Create Account' : 'Sign In')}
           </button>
-          <p style={{ textAlign: 'center', marginTop: 16, color: 'var(--text-secondary)', fontSize: 14 }}>
+          <p style={{ textAlign: 'center', marginTop: 20, color: 'var(--text-secondary)', fontSize: 13 }}>
             {isRegister ? 'Already have an account? ' : "Don't have an account? "}
             <a href="#" onClick={(e) => { e.preventDefault(); setIsRegister(!isRegister); setError('') }}
-               style={{ color: 'var(--accent-secondary)' }}>
+               style={{ color: 'var(--accent-secondary)', fontWeight: 600, textDecoration: 'none' }}>
               {isRegister ? 'Sign In' : 'Register'}
             </a>
           </p>

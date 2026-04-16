@@ -1,10 +1,39 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from './client'
 
-export function useTransactions(page = 1, pageSize = 20) {
+export interface TransactionFilters {
+  category?: string
+  dateFrom?: string
+  dateTo?: string
+  amountMin?: number
+  amountMax?: number
+  search?: string
+}
+
+export function useTransactions(page = 1, pageSize = 20, filters: TransactionFilters = {}) {
   return useQuery({
-    queryKey: ['transactions', page, pageSize],
-    queryFn: () => apiClient.get(`/transactions?page=${page}&page_size=${pageSize}`).then(r => r.data),
+    queryKey: ['transactions', page, pageSize, filters],
+    queryFn: () => {
+      const params = new URLSearchParams()
+      params.set('page', String(page))
+      params.set('page_size', String(pageSize))
+      if (filters.category) params.set('category', filters.category)
+      if (filters.dateFrom) params.set('date_from', filters.dateFrom)
+      if (filters.dateTo) params.set('date_to', filters.dateTo)
+      if (filters.amountMin != null) params.set('amount_min', String(filters.amountMin))
+      if (filters.amountMax != null) params.set('amount_max', String(filters.amountMax))
+      if (filters.search) params.set('search', filters.search)
+      return apiClient.get(`/transactions/?${params.toString()}`).then(r => r.data)
+    },
+    retry: 1,
+  })
+}
+
+export function useCategories() {
+  return useQuery({
+    queryKey: ['categories'],
+    queryFn: () => apiClient.get('/analytics/categories').then(r => r.data),
+    staleTime: 5 * 60 * 1000,
   })
 }
 

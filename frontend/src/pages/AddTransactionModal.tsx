@@ -39,18 +39,24 @@ export default function AddTransactionModal({ onClose }: Props) {
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal" onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
-                    <span>➕ Add Transaction</span>
+                    <span>Add Transaction</span>
                     <button className="modal-close" onClick={onClose}>✕</button>
                 </div>
 
                 {success ? (
-                    <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--accent-green)', fontSize: 18 }}>
-                        ✅ Transaction added!
+                    <div style={{ textAlign: 'center', padding: '32px 0' }}>
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--accent-green)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 12 }}>
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                            <polyline points="22 4 12 14.01 9 11.01"/>
+                        </svg>
+                        <div style={{ color: 'var(--accent-green)', fontSize: 16, fontWeight: 600 }}>
+                            Transaction added successfully
+                        </div>
                     </div>
                 ) : (
                     <form onSubmit={handleSubmit}>
                         <div className="form-group">
-                            <label>Amount (₹) *</label>
+                            <label>Amount (₹) <span style={{ color: 'var(--accent-red)' }}>*</span></label>
                             <input
                                 id="txn-amount"
                                 type="number"
@@ -63,7 +69,7 @@ export default function AddTransactionModal({ onClose }: Props) {
                             />
                         </div>
                         <div className="form-group">
-                            <label>Description *</label>
+                            <label>Description <span style={{ color: 'var(--accent-red)' }}>*</span></label>
                             <input
                                 id="txn-desc"
                                 type="text"
@@ -74,7 +80,7 @@ export default function AddTransactionModal({ onClose }: Props) {
                             />
                         </div>
                         <div className="form-group">
-                            <label>Merchant Name <span style={{ color: 'var(--text-secondary)' }}>(optional)</span></label>
+                            <label>Merchant Name <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(optional)</span></label>
                             <input
                                 id="txn-merchant"
                                 type="text"
@@ -90,6 +96,7 @@ export default function AddTransactionModal({ onClose }: Props) {
                                 type="date"
                                 value={form.date ?? today}
                                 onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
+                                style={{ colorScheme: 'dark' }}
                             />
                         </div>
 
@@ -100,8 +107,7 @@ export default function AddTransactionModal({ onClose }: Props) {
                         )}
 
                         <div style={{ display: 'flex', gap: 12 }}>
-                            <button type="button" onClick={onClose}
-                                style={{ flex: 1, padding: '12px', background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)', cursor: 'pointer', fontWeight: 600 }}>
+                            <button type="button" className="btn-secondary" onClick={onClose} style={{ flex: 1, padding: 12 }}>
                                 Cancel
                             </button>
                             <button type="submit" className="btn-primary" style={{ flex: 2 }} disabled={isPending}>

@@ -39,6 +39,8 @@ class TransactionResponse(BaseModel):
     merchant_name: Optional[str]
     raw_description: Optional[str]
     mcc_code: Optional[str]
+    category_name: Optional[str] = None
+    category_icon: Optional[str] = None
     ts: datetime
     created_at: datetime
 
