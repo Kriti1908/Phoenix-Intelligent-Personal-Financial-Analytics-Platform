@@ -25,6 +25,7 @@ async def list_alerts(
     """List anomaly alerts for the authenticated user with pagination and category metadata."""
     if not x_user_id:
         raise HTTPException(status_code=401, detail="User ID not provided")
+    logger.info(f"LIST_ALERTS: user_id={x_user_id}")
 
     offset = (page - 1) * page_size
     conditions: list[str] = ["a.user_id = :uid"]
@@ -76,7 +77,7 @@ async def list_alerts(
     }
 
 
-@router.post("/alerts/{alert_id}/acknowledge")
+@router.post("/{alert_id}/acknowledge")
 async def acknowledge_alert(
     alert_id: str,
     x_user_id: str = Header(None, alias="X-User-ID"),

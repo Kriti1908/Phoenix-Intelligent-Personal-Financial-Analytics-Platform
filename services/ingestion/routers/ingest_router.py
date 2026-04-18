@@ -114,6 +114,7 @@ async def list_transactions(
     """List transactions for the authenticated user with pagination and filters."""
     if not x_user_id:
         raise HTTPException(status_code=401, detail="User ID not provided")
+    logger.info(f"LIST_TRANSACTIONS: user_id={x_user_id}")
 
     from sqlalchemy import text as sa_text
 

@@ -23,7 +23,7 @@ export function useTransactions(page = 1, pageSize = 20, filters: TransactionFil
       if (filters.amountMin != null) params.set('amount_min', String(filters.amountMin))
       if (filters.amountMax != null) params.set('amount_max', String(filters.amountMax))
       if (filters.search) params.set('search', filters.search)
-      return apiClient.get(`/transactions/?${params.toString()}`).then(r => r.data)
+      return apiClient.get(`/transactions?${params.toString()}`).then(r => r.data)
     },
     retry: 1,
   })
