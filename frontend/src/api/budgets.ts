@@ -5,12 +5,14 @@ export interface BudgetRecommendation {
     category_id: number
     category_name: string
     recommended_amount: number
+    current_limit: number | null      // user-saved override (null if not set)
+    effective_limit: number           // current_limit ?? recommended_amount
+    current_spending: number          // actual spend this month
+    pct_used: number                  // 0–100+ percentage
+    alert_level: 'ok' | 'warning' | 'over'
     strategy: string
-    bucket?: string
-    median_spending?: number
-    // Override fields — present only when user has set a custom limit
-    current_limit?: number | null
-    current_spending?: number | null
+    bucket?: string                   // needs / wants / savings (50/30/20 only)
+    median_spending?: number          // statistical strategy only
 }
 
 export interface BudgetResponse {
@@ -25,7 +27,7 @@ export function useBudgets(month?: string) {
     return useQuery<BudgetResponse>({
         queryKey: ['budgets', month ?? 'current'],
         queryFn: () => apiClient.get(`/recommendations/budget${params}`).then(r => r.data),
-        staleTime: 60_000,
+        staleTime: 30_000,
     })
 }
 
@@ -35,16 +37,19 @@ export function useOverrideBudget() {
         mutationFn: ({ categoryId, limitAmount, month }: {
             categoryId: number
             limitAmount: number
-            month?: string
+            month: string
         }) => {
-            const params = new URLSearchParams({ limit_amount: String(limitAmount) })
-            if (month) params.set('month', month)
+            const params = new URLSearchParams({
+                limit_amount: String(limitAmount),
+                month,
+            })
             return apiClient
                 .post(`/recommendations/budget/${categoryId}/override?${params}`)
                 .then(r => r.data)
         },
-        onSuccess: () => {
-            qc.invalidateQueries({ queryKey: ['budgets'] })
+        onSuccess: (_data, vars) => {
+            qc.invalidateQueries({ queryKey: ['budgets', vars.month] })
+            qc.invalidateQueries({ queryKey: ['budgets', 'current'] })
             qc.invalidateQueries({ queryKey: ['dashboard', 'overview'] })
         },
     })

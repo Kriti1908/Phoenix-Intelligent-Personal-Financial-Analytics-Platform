@@ -27,14 +27,22 @@ class RuleBasedCategorizer(ICategorizer):
             cat = MCC_CODE_MAP[mcc_code]
             return CategoryResult(cat.id, cat.name, 0.95, CategorizationMethod.RULE_MCC)
 
-        # Tier 2: Merchant name exact match (case-insensitive)
+        # Tier 2: Merchant name — contains match (case-insensitive)
+        # e.g. "coffee at starbucks" → contains "STARBUCKS" → Dining
         if merchant_name:
-            key = merchant_name.strip().upper()
-            if key in MERCHANT_MAP:
-                cat = MERCHANT_MAP[key]
+            merchant_upper = merchant_name.strip().upper()
+            # First try exact match (faster)
+            if merchant_upper in MERCHANT_MAP:
+                cat = MERCHANT_MAP[merchant_upper]
                 return CategoryResult(
                     cat.id, cat.name, 0.90, CategorizationMethod.RULE_MERCHANT
                 )
+            # Then try contains match for partial names
+            for known, cat in MERCHANT_MAP.items():
+                if known in merchant_upper:
+                    return CategoryResult(
+                        cat.id, cat.name, 0.80, CategorizationMethod.RULE_MERCHANT
+                    )
 
         # Tier 3: Keyword/regex on description
         desc_upper = (description or "").upper()

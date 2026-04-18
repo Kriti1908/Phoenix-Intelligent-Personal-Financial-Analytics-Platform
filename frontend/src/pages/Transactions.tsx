@@ -28,28 +28,29 @@ function getCategoryColor(name: string) {
 /* ── Inline SVG icons ────────────────────────────────────────────── */
 const PlusIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+    <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
   </svg>
 )
 const UploadIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
   </svg>
 )
 const SearchIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }}>
-    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
   </svg>
 )
 const InboxIcon = () => (
   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--accent-primary)' }}>
-    <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/>
-    <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>
+    <polyline points="22 12 16 12 14 15 10 15 8 12 2 12" />
+    <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
   </svg>
 )
 
 export default function Transactions() {
   const [page, setPage] = useState(1)
+<<<<<<< Updated upstream
   const [showAddModal, setShowAddModal] = useState(false)
   const [showCSVModal, setShowCSVModal] = useState(false)
 
@@ -98,6 +99,7 @@ export default function Transactions() {
 
   return (
     <div>
+      {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
         <h1 className="page-title" style={{ margin: 0 }}>Transactions</h1>
         <div style={{ display: 'flex', gap: 10 }}>
@@ -249,8 +251,8 @@ export default function Transactions() {
                       {t.category_name || 'Uncategorized'}
                     </span>
                   </td>
-                  <td style={{ fontWeight: 600, textAlign: 'right', fontFeatureSettings: '"tnum"' }}>
-                    ₹{Math.abs(t.amount).toLocaleString('en-IN')}
+                  <td style={{ fontWeight: 600, textAlign: 'right', fontFeatureSettings: '"tnum"', color: t.amount < 0 ? 'var(--accent-red)' : 'var(--accent-green)' }}>
+                    {t.amount < 0 ? '-' : '+'}₹{Math.abs(t.amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                   </td>
                   <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{t.currency}</td>
                 </tr>

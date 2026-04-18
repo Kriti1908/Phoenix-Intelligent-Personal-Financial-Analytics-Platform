@@ -26,8 +26,9 @@ class RuleBasedStrategy(IRecommendationStrategy):
     async def compute_budget(self, user_id, month, spending_history):
         # Estimate income from last available spending (assume spending = 80% of income)
         if spending_history:
-            avg_spend = sum(h.get("total", 0) for h in spending_history) / len(spending_history)
-            estimated_income = avg_spend / 0.80
+            total_history_spend = sum(h.get("total", 0) for h in spending_history)
+            avg_spend = total_history_spend / len(spending_history)
+            estimated_income = max(50000, avg_spend / 0.80) # Floor at 50k to avoid tiny budgets for new users
         else:
             estimated_income = 50000  # Default INR
 
@@ -65,10 +66,10 @@ class RuleBasedStrategy(IRecommendationStrategy):
                 "bucket": "wants",
             })
 
-        # Savings recommendation
+        # Savings / Investments recommendation (category_id=10 = 'Investments' in DB)
         recommendations.append({
             "category_id": 10,
-            "category_name": "Savings",
+            "category_name": "Investments / Savings",
             "recommended_amount": round(savings_budget, 2),
             "strategy": "50/30/20",
             "bucket": "savings",

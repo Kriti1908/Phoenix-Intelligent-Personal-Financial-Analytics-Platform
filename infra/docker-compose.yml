@@ -93,7 +93,9 @@ services:
       ANALYTICS_ENGINE_URL: http://phoenix-analytics:8003
       NOTIFICATION_BACKEND: rest
       NOTIFICATION_OBSERVERS: >
-        http://phoenix-analytics:8003/internal/trigger
+        http://phoenix-analytics:8003/internal/trigger,
+        http://phoenix-anomaly:8004/internal/events/analytics-complete,
+        http://phoenix-analytics:8003/internal/cache-invalidate
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
