@@ -58,7 +58,7 @@ app = FastAPI(
 
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
-app.include_router(anomaly_router.router, tags=["anomaly"])
+app.include_router(anomaly_router.router, prefix="/alerts", tags=["anomaly"])
 app.include_router(internal_router.router, tags=["internal"])
 
 

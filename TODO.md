@@ -44,11 +44,11 @@ The Transactions page shows amount/date/description but NOT the category — the
 ### 5. Alerts Page (Frontend missing)
 Anomaly Detection creates alerts in the DB, but there's no page to view them.
 
-- [ ] **Create Alerts page** (`/alerts`) — list anomaly alerts with Z-score, category, description, timestamp
-- [ ] **Add acknowledge button** per alert (calls `POST /alerts/{id}/acknowledge`)
-- [ ] **Add Alerts link to sidebar** navigation in `App.tsx`
-- [ ] **Show alert count badge** on the sidebar Alerts link (unread count from Dashboard overview)
-- [ ] **WebSocket toast notifications** — show a popup when a real-time alert arrives via WebSocket (currently just invalidates the query cache silently)
+- [x] **Create Alerts page** (`/alerts`) — list anomaly alerts with Z-score, category, description, timestamp
+- [x] **Add acknowledge button** per alert (calls `POST /alerts/{id}/acknowledge`)
+- [x] **Add Alerts link to sidebar** navigation in `App.tsx`
+- [x] **Show alert count badge** on the sidebar Alerts link (unread count from Dashboard overview)
+- [x] **WebSocket toast notifications** — show a popup when a real-time alert arrives via WebSocket (currently just invalidates the query cache silently)
 
 ### 6. Budget Management (API-only, no UI)
 Users can't set or override budgets from the frontend.

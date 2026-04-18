@@ -1,11 +1,14 @@
+import { useState, useEffect, useCallback } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from './store/authStore'
 type AuthState = Parameters<typeof useAuthStore>[0] extends ((s: infer S) => unknown) ? S : never
 import { useAlertWebSocket } from './hooks/useAlertWebSocket'
+import { useDashboardOverview } from './api/dashboard'
 import Dashboard from './pages/Dashboard'
 import Transactions from './pages/Transactions'
 import Recommendations from './pages/Recommendations'
 import Budgets from './pages/Budgets'
+import Alerts from './pages/Alerts'
 import Login from './pages/Login'
 import Settings from './pages/Settings'
 
@@ -41,6 +44,11 @@ const Icon = {
       <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
     </svg>
   ),
+  bell: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+    </svg>
+  ),
   settings: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="3"></circle>
@@ -54,20 +62,61 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" />
 }
 
-function NavLink({ href, icon, children }: { href: string; icon: React.ReactNode; children: React.ReactNode }) {
+function NavLink({ href, icon, children, badge }: { href: string; icon: React.ReactNode; children: React.ReactNode; badge?: number }) {
   const location = useLocation()
   const isActive = location.pathname === href || (href !== '/' && location.pathname.startsWith(href))
   return (
-    <a href={href} className={isActive ? 'active' : ''}>
+    <a href={href} className={isActive ? 'active' : ''} style={{ position: 'relative' }}>
       {icon}
       {children}
+      {badge !== undefined && badge > 0 && (
+        <span className="nav-badge">{badge > 99 ? '99+' : badge}</span>
+      )}
     </a>
+  )
+}
+
+/* ── Toast Container ──────────────────────────────────────────────── */
+function ToastContainer() {
+  const [toasts, setToasts] = useState<Array<{ id: number; message: string }>>([])
+
+  const dismissToast = useCallback((id: number) => {
+    setToasts(prev => prev.filter(t => t.id !== id))
+  }, [])
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      const id = Date.now()
+      setToasts(prev => [...prev.slice(-4), { id, message: detail?.description || 'New anomaly alert detected' }])
+      setTimeout(() => dismissToast(id), 5000)
+    }
+    window.addEventListener('phoenix:alert', handler)
+    return () => window.removeEventListener('phoenix:alert', handler)
+  }, [dismissToast])
+
+  if (toasts.length === 0) return null
+  return (
+    <div className="toast-container">
+      {toasts.map(t => (
+        <div key={t.id} className="toast">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-amber)" strokeWidth="2" strokeLinecap="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <span style={{ flex: 1 }}>{t.message}</span>
+          <button className="toast-close" onClick={() => dismissToast(t.id)}>✕</button>
+        </div>
+      ))}
+    </div>
   )
 }
 
 function AppLayout({ children }: { children: React.ReactNode }) {
   const logout = useAuthStore((s: AuthState) => s.logout)
   useAlertWebSocket()
+  const { data: dashboardData } = useDashboardOverview()
+  const unreadAlerts = dashboardData?.unread_alerts ?? 0
 
   return (
     <div className="app">
@@ -81,6 +130,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
           <NavLink href="/transactions" icon={Icon.receipt}>Transactions</NavLink>
           <NavLink href="/budgets" icon={Icon.wallet}>Budgets</NavLink>
           <NavLink href="/recommendations" icon={Icon.lightbulb}>Recommendations</NavLink>
+          <NavLink href="/alerts" icon={Icon.bell} badge={unreadAlerts}>Alerts</NavLink>
           <NavLink href="/settings" icon={Icon.settings}>Settings</NavLink>
           <a href="#" onClick={(e) => { e.preventDefault(); logout(); }}>
             {Icon.logout}
@@ -91,6 +141,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
       <main className="main-content">
         {children}
       </main>
+      <ToastContainer />
     </div>
   )
 }
@@ -118,6 +169,11 @@ export default function App() {
         <Route path="/recommendations" element={
           <ProtectedRoute>
             <AppLayout><Recommendations /></AppLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/alerts" element={
+          <ProtectedRoute>
+            <AppLayout><Alerts /></AppLayout>
           </ProtectedRoute>
         } />
         <Route path="/settings" element={

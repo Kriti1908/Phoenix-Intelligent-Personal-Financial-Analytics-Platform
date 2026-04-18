@@ -7,14 +7,14 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
+router = APIRouter(redirect_slashes=False)
 
 
 async def get_db():
     raise NotImplementedError("get_db must be overridden at app startup")
 
 
-@router.get("/alerts")
+@router.get("", response_model=None)
 async def list_alerts(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -22,35 +22,58 @@ async def list_alerts(
     x_user_id: str = Header(None, alias="X-User-ID"),
     db: AsyncSession = Depends(get_db),
 ):
-    """List anomaly alerts for the authenticated user."""
+    """List anomaly alerts for the authenticated user with pagination and category metadata."""
     if not x_user_id:
         raise HTTPException(status_code=401, detail="User ID not provided")
 
     offset = (page - 1) * page_size
-    where_clause = "WHERE user_id = :uid"
-    if unread_only:
-        where_clause += " AND acknowledged_at IS NULL"
+    conditions: list[str] = ["a.user_id = :uid"]
+    params: dict = {"uid": x_user_id}
 
-    result = await db.execute(
-        text(
-            f"SELECT id, transaction_id, category_id, z_score, description, "
-            f"acknowledged_at, created_at FROM anomaly_alerts "
-            f"{where_clause} ORDER BY created_at DESC LIMIT :lim OFFSET :off"
-        ),
-        {"uid": x_user_id, "lim": page_size, "off": offset},
+    if unread_only:
+        conditions.append("a.acknowledged_at IS NULL")
+
+    where_clause = " AND ".join(conditions)
+
+    # 1. Total count for pagination parity with transactions
+    count_sql = f"SELECT COUNT(*) FROM anomaly_alerts a WHERE {where_clause}"
+    count_result = await db.execute(text(count_sql), params)
+    total = count_result.scalar() or 0
+
+    # 2. Optimized fetch with category join (for better frontend rendering)
+    fetch_sql = (
+        "SELECT a.id, a.transaction_id, a.category_id, a.z_score, a.description, "
+        "a.acknowledged_at, a.created_at, c.name AS category_name, c.icon AS category_icon "
+        "FROM anomaly_alerts a "
+        "LEFT JOIN categories c ON a.category_id = c.id "
+        f"WHERE {where_clause} "
+        "ORDER BY a.created_at DESC "
+        "LIMIT :lim OFFSET :off"
     )
-    return [
-        {
-            "id": str(row.id),
-            "transaction_id": str(row.transaction_id) if row.transaction_id else None,
-            "category_id": row.category_id,
-            "z_score": float(row.z_score),
-            "description": row.description,
-            "acknowledged_at": str(row.acknowledged_at) if row.acknowledged_at else None,
-            "created_at": str(row.created_at),
-        }
-        for row in result.fetchall()
-    ]
+    params.update({"lim": page_size, "off": offset})
+    
+    result = await db.execute(text(fetch_sql), params)
+    rows = result.fetchall()
+
+    return {
+        "alerts": [
+            {
+                "id": str(row.id),
+                "transaction_id": str(row.transaction_id) if row.transaction_id else None,
+                "category_id": row.category_id,
+                "category_name": row.category_name,
+                "category_icon": row.category_icon,
+                "z_score": float(row.z_score),
+                "description": row.description,
+                "acknowledged_at": str(row.acknowledged_at) if row.acknowledged_at else None,
+                "created_at": str(row.created_at),
+            }
+            for row in rows
+        ],
+        "total": total,
+        "page": page,
+        "page_size": page_size
+    }
 
 
 @router.post("/alerts/{alert_id}/acknowledge")

@@ -20,7 +20,7 @@ from models import Transaction
 from publishers.base import INotificationPublisher
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
+router = APIRouter(redirect_slashes=False)
 
 
 async def get_db():

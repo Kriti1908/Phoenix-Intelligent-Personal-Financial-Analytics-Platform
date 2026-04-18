@@ -17,7 +17,12 @@ export function useAlertWebSocket() {
     ws.onmessage = (event) => {
       const alert = JSON.parse(event.data)
       if (alert.type === 'alert') {
+        // Invalidate both dashboard and alerts caches
         queryClient.invalidateQueries({ queryKey: ['dashboard', 'overview'] })
+        queryClient.invalidateQueries({ queryKey: ['alerts'] })
+
+        // Dispatch custom event for toast notification
+        window.dispatchEvent(new CustomEvent('phoenix:alert', { detail: alert }))
       }
     }
 

@@ -820,3 +820,198 @@ body {
   accent-color: var(--accent-primary);
   cursor: pointer;
 }
+
+/* ═══ Alerts Page ═══════════════════════════════════════════════════ */
+.alerts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.alert-card {
+  display: flex;
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  transition: all var(--transition);
+  animation: slideIn 0.3s ease;
+}
+
+.alert-card:hover {
+  border-color: var(--border-accent);
+  box-shadow: var(--shadow), var(--shadow-glow);
+}
+
+.alert-card.acknowledged {
+  opacity: 0.55;
+}
+
+.alert-card.acknowledged:hover {
+  opacity: 0.75;
+}
+
+.alert-card-indicator {
+  width: 4px;
+  flex-shrink: 0;
+}
+
+.alert-card-body {
+  flex: 1;
+  padding: 18px 22px;
+  min-width: 0;
+}
+
+.alert-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.severity-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 700;
+  border: 1px solid;
+  letter-spacing: 0.4px;
+  font-feature-settings: "tnum";
+  white-space: nowrap;
+}
+
+.alert-card-description {
+  font-size: 14px;
+  color: var(--text-primary);
+  line-height: 1.5;
+  margin-bottom: 10px;
+  font-weight: 500;
+}
+
+.alert-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+
+.btn-acknowledge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid rgba(var(--accent-green-rgb), 0.25);
+  border-radius: var(--radius-sm);
+  background: rgba(var(--accent-green-rgb), 0.06);
+  color: var(--accent-green);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+
+.btn-acknowledge:hover {
+  background: rgba(var(--accent-green-rgb), 0.12);
+  border-color: rgba(var(--accent-green-rgb), 0.4);
+  transform: translateY(-1px);
+}
+
+.btn-acknowledge:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.acknowledged-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* ═══ Nav Badge ═════════════════════════════════════════════════════ */
+.nav-badge {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--gradient-shine);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(var(--accent-primary-rgb), 0.4);
+  font-feature-settings: "tnum";
+  line-height: 1;
+}
+
+/* ═══ Toast Notifications ══════════════════════════════════════════ */
+.toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 400px;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  background: var(--bg-card);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(var(--accent-amber-rgb), 0.25);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg), 0 0 30px rgba(var(--accent-amber-rgb), 0.08);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  animation: toastSlideIn 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes toastSlideIn {
+  from { transform: translateX(100%) scale(0.95); opacity: 0; }
+  to { transform: translateX(0) scale(1); opacity: 1; }
+}
+
+.toast-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: all var(--transition);
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.toast-close:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+}
