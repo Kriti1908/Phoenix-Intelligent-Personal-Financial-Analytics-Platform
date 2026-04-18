@@ -50,7 +50,6 @@ const InboxIcon = () => (
 
 export default function Transactions() {
   const [page, setPage] = useState(1)
-<<<<<<< Updated upstream
   const [showAddModal, setShowAddModal] = useState(false)
   const [showCSVModal, setShowCSVModal] = useState(false)
 
