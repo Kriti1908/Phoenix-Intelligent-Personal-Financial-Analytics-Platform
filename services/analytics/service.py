@@ -236,7 +236,7 @@ class AnalyticsService:
 
         result = await self.db.execute(
             text(
-                "SELECT c.name as category, SUM(t.amount) as amount, COUNT(*) as count "
+                "SELECT c.name as category, SUM(ABS(t.amount)) as amount, COUNT(*) as count "
                 "FROM transactions t "
                 "JOIN transaction_categories tc ON t.id = tc.transaction_id "
                 "JOIN categories c ON tc.category_id = c.id "

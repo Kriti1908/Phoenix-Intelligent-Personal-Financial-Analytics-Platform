@@ -24,7 +24,7 @@ services:
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql
       - ./postgres/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
     ports:
-      - "5432:5432"
+      - "5433:5432"
     networks: [phoenix_net]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U phoenix"]

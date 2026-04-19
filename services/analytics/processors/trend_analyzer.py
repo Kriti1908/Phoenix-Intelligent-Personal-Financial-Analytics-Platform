@@ -13,9 +13,17 @@ class TrendAnalyzer:
 
     def compute(self, transactions: list[dict], months: int = 6) -> list[dict]:
         """
-        Input: list of {amount, ts, category_name}
+        Input: list of {amount, currency, ts, category_name}
         Output: list of {month, total, categories: {category: amount}}
         """
+        # Static exchange rates for normalization (Base: INR)
+        EXCHANGE_RATES = {
+            "INR": Decimal("1.0"),
+            "USD": Decimal("83.0"),
+            "EUR": Decimal("90.0"),
+            "GBP": Decimal("105.0"),
+        }
+
         monthly: dict[str, dict] = defaultdict(
             lambda: {"total": Decimal("0"), "categories": defaultdict(Decimal), "count": 0}
         )
@@ -25,11 +33,17 @@ class TrendAnalyzer:
             if isinstance(ts, str):
                 ts = datetime.fromisoformat(ts)
             month_key = ts.strftime("%Y-%m") if ts else "unknown"
-            amount = Decimal(str(txn.get("amount", 0)))
+            
+            raw_amount = Decimal(str(txn.get("amount", 0)))
+            currency = txn.get("currency", "INR").upper()
+            rate = EXCHANGE_RATES.get(currency, Decimal("1.0"))
+            
+            # Normalize to INR
+            amount = abs(raw_amount) * rate
             category = txn.get("category_name", "Other")
 
-            monthly[month_key]["total"] += abs(amount)
-            monthly[month_key]["categories"][category] += abs(amount)
+            monthly[month_key]["total"] += amount
+            monthly[month_key]["categories"][category] += amount
             monthly[month_key]["count"] += 1
 
         # Sort by month and limit

@@ -13,6 +13,7 @@ from service import AnalyticsService
 from categorization.service import CategorizationService
 from cache import CacheInvalidator
 from clickhouse_writer import ClickHouseWriter
+from processors.trend_analyzer import TrendAnalyzer
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -109,20 +110,24 @@ async def spending_trends(
 
     result = await db.execute(
         text(
-            "SELECT t.amount, t.ts, COALESCE(c.name, 'Other') as category_name "
+            "SELECT t.amount, t.currency, t.ts, COALESCE(c.name, 'Other') as category_name "
             "FROM transactions t "
             "LEFT JOIN transaction_categories tc ON t.id = tc.transaction_id "
             "LEFT JOIN categories c ON tc.category_id = c.id "
             "WHERE t.user_id = :uid "
-            "AND t.ts >= CURRENT_DATE - INTERVAL ':months months' "
+            "AND t.ts >= CURRENT_DATE - (INTERVAL '1 month' * :months) "
             "ORDER BY t.ts"
         ),
         {"uid": x_user_id, "months": months},
     )
-    from ..processors.trend_analyzer import TrendAnalyzer
     analyzer = TrendAnalyzer()
     txns = [
-        {"amount": float(row.amount), "ts": row.ts, "category_name": row.category_name}
+        {
+            "amount": float(row.amount),
+            "currency": row.currency,
+            "ts": row.ts,
+            "category_name": row.category_name
+        }
         for row in result.fetchall()
     ]
     return analyzer.compute(txns, months)
