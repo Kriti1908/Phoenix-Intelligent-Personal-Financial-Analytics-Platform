@@ -153,14 +153,21 @@ CREATE TABLE notification_preferences (
 );
 
 -- Row-Level Security: users can only access their own data
+-- Note: nullif(..., '') prevents a UUID cast error when app.current_user_id is not set
+-- (current_setting with missing_ok=true returns '' when unset; nullif converts that to NULL;
+--  NULL::UUID is NULL, so the USING clause evaluates to false → no rows, no crash)
 ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
-CREATE POLICY user_isolation ON transactions USING (user_id = current_setting('app.current_user_id', true)::UUID);
+CREATE POLICY user_isolation ON transactions
+  USING (user_id = nullif(current_setting('app.current_user_id', true), '')::UUID);
 
 ALTER TABLE financial_health_scores ENABLE ROW LEVEL SECURITY;
-CREATE POLICY fhs_user_isolation ON financial_health_scores USING (user_id = current_setting('app.current_user_id', true)::UUID);
+CREATE POLICY fhs_user_isolation ON financial_health_scores
+  USING (user_id = nullif(current_setting('app.current_user_id', true), '')::UUID);
 
 ALTER TABLE anomaly_alerts ENABLE ROW LEVEL SECURITY;
-CREATE POLICY alerts_user_isolation ON anomaly_alerts USING (user_id = current_setting('app.current_user_id', true)::UUID);
+CREATE POLICY alerts_user_isolation ON anomaly_alerts
+  USING (user_id = nullif(current_setting('app.current_user_id', true), '')::UUID);
 
 ALTER TABLE budgets ENABLE ROW LEVEL SECURITY;
-CREATE POLICY budgets_user_isolation ON budgets USING (user_id = current_setting('app.current_user_id', true)::UUID);
+CREATE POLICY budgets_user_isolation ON budgets
+  USING (user_id = nullif(current_setting('app.current_user_id', true), '')::UUID);

@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 import redis.asyncio as aioredis
 
@@ -23,6 +24,7 @@ redis_client: aioredis.Redis | None = None
 
 
 async def get_db():
+    """Generic DB session — no RLS context set. Used for internal/service endpoints."""
     async with async_session() as session:
         try:
             yield session
@@ -32,6 +34,38 @@ async def get_db():
 
 async def get_redis():
     return redis_client
+
+
+def get_db_for_user(user_id: str):
+    """
+    Repository Pattern: Returns a DB session with the PostgreSQL session variable
+    `app.current_user_id` set to the given user_id.
+
+    This satisfies the RLS policy:
+        USING (user_id = nullif(current_setting('app.current_user_id', true), '')::UUID)
+
+    `SET LOCAL` scopes the variable to the current transaction only, ensuring
+    no cross-request contamination even in a connection pool environment.
+
+    NOTE: PostgreSQL's SET LOCAL does not support bind parameters ($1 / :name).
+    We validate user_id as a proper UUID and embed it as a literal to avoid
+    the asyncpg "syntax error at or near $1" error.
+    """
+    import uuid as _uuid
+    # Validate: will raise ValueError if malformed — prevents SQL injection
+    safe_uid = str(_uuid.UUID(user_id))
+
+    async def _get_db():
+        async with async_session() as session:
+            try:
+                # SET LOCAL does not accept bind params; embed validated UUID literal
+                await session.execute(
+                    text(f"SET LOCAL app.current_user_id = '{safe_uid}'")
+                )
+                yield session
+            finally:
+                await session.close()
+    return _get_db
 
 
 @asynccontextmanager
@@ -48,6 +82,9 @@ async def lifespan(app: FastAPI):
     app.dependency_overrides[analytics_router.get_redis] = get_redis
     app.dependency_overrides[internal_router.get_db] = get_db
     app.dependency_overrides[internal_router.get_redis] = get_redis
+
+    # Expose the user-scoped DB factory so analytics_router can reference it
+    app.state.get_db_for_user = get_db_for_user
 
     yield
     logger.info("Analytics Engine shutting down...")

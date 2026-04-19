@@ -25,10 +25,10 @@ The Observer pattern is implemented and `NOTIFICATION_OBSERVERS` is configured i
 ### 3. Dashboard Shows Real Data (Currently shows empty/zeroed out)
 `transaction_categories` seed data exists, but Dashboard Facade queries may still return empty due to missing FHS data and RLS policy interference.
 
-- [ ] **Seed initial `financial_health_scores` row** for the test user so the FHS gauge shows a real value instead of 0
-- [ ] **Seed initial `budgets` rows** for common categories so the budget progress bars render on Dashboard
-- [ ] **Verify RLS doesn't block service queries** — services use direct SQL without setting `app.current_user_id`; ensure RLS policies (with `current_setting(..., true)`) return rows correctly for superuser/service connections
-- [ ] **Handle empty state gracefully** in all Dashboard components (FHS gauge, pie chart, budget bars) — show "No data yet" instead of broken charts
+- [x] **Seed initial `financial_health_scores` row** for the test user so the FHS gauge shows a real value instead of 0
+- [x] **Seed initial `budgets` rows** for common categories so the budget progress bars render on Dashboard
+- [x] **Verify RLS doesn't block service queries** — fixed via `nullif(current_setting(..., true), '')::UUID` in init.sql + `get_db_for_user()` Repository factory sets `SET LOCAL app.current_user_id` per request
+- [x] **Handle empty state gracefully** in all Dashboard components (FHS gauge, pie chart, budget bars) — `EmptyState` Null Object component shown when data is absent
 
 ### 4. Transactions Page Shows Categories (Currently missing)
 The Transactions page shows amount/date/description but NOT the category — the most important analytical output.

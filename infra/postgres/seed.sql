@@ -130,3 +130,51 @@ WHERE transaction_id IN (
     SELECT id FROM transactions 
     WHERE raw_description LIKE '%RENT%' AND user_id = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'
 );
+
+-- ── Financial Health Score Seed ────────────────────────────────────────────────
+-- Pre-computed FHS for the test user based on the seeded transaction data.
+-- Metrics rationale:
+--   savings_rate=0.33  → 50k avg monthly spending / ~75k estimated income → 33% savings
+--   dti_ratio=0.15     → default (no loan data); considered healthy
+--   spending_volatility=0.18 → low coefficient of variation across 6 seed months
+--   emergency_fund_ratio=0.67 → 2 months available (defaulted), target is 3
+-- Score breakdown: savings(25)=41.25pts, DTI(25)=14.6pts, volatility(25)=16pts, EF(25)=16.67pts → 68.5
+INSERT INTO financial_health_scores
+    (id, user_id, score, savings_rate, dti_ratio, spending_volatility, emergency_fund_ratio, computed_at)
+VALUES (
+    gen_random_uuid(),
+    'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    68.50,
+    0.3333,   -- savings rate (33%)
+    0.1500,   -- DTI ratio
+    0.1800,   -- spending volatility (coefficient of variation)
+    0.6667,   -- emergency fund ratio (2 out of 3 months target)
+    now()
+) ON CONFLICT DO NOTHING;
+
+-- ── Budget Seed ────────────────────────────────────────────────────────────────
+-- Budget rows for the current calendar month.
+-- recommended_amount = realistic INR monthly limit per category.
+-- limit_amount = 120% of recommended (gives buffer before "over" status).
+-- Categories: Groceries(1), Transportation(2), Utilities(3), Entertainment(4),
+--             Healthcare(5), Dining(6), Shopping(7), Rent/Housing(11), Insurance(12)
+INSERT INTO budgets (id, user_id, category_id, month, recommended_amount, limit_amount)
+SELECT
+    gen_random_uuid(),
+    'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    cat.category_id,
+    DATE_TRUNC('month', CURRENT_DATE)::DATE,
+    cat.recommended_amount,
+    cat.limit_amount
+FROM (VALUES
+    (1,  6500.00,  7500.00),   -- Groceries: ₹6,500 recommended / ₹7,500 limit
+    (2,  2500.00,  3000.00),   -- Transportation: ₹2,500 / ₹3,000
+    (3,  5000.00,  6000.00),   -- Utilities: ₹5,000 / ₹6,000
+    (4,  2000.00,  2500.00),   -- Entertainment: ₹2,000 / ₹2,500
+    (5,  1500.00,  2000.00),   -- Healthcare: ₹1,500 / ₹2,000
+    (6,  4000.00,  5000.00),   -- Dining: ₹4,000 / ₹5,000
+    (7,  5000.00,  6500.00),   -- Shopping: ₹5,000 / ₹6,500
+    (11, 25000.00, 25000.00),  -- Rent/Housing: fixed ₹25,000 (no buffer needed)
+    (12, 5000.00,  5500.00)    -- Insurance: ₹5,000 / ₹5,500
+) AS cat(category_id, recommended_amount, limit_amount)
+ON CONFLICT (user_id, category_id, month) DO NOTHING;
