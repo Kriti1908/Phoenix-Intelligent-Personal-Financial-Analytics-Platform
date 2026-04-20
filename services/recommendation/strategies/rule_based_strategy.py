@@ -13,6 +13,37 @@ CATEGORY_NAMES = {
     14: "Subscriptions", 15: "Other",
 }
 
+def _aggregate_history_by_category(spending_history: list[dict]) -> list[dict]:
+    """Collapse category-month rows into one row per category."""
+    categories: dict[int, dict] = {}
+    for row in spending_history:
+        category_id = row.get("category_id")
+        if category_id is None:
+            continue
+
+        category = categories.setdefault(
+            category_id,
+            {
+                "category_id": category_id,
+                "category_name": row.get("category_name") or CATEGORY_NAMES.get(category_id, "Other"),
+                "total": 0.0,
+            },
+        )
+        category["total"] += float(row.get("total", 0) or 0)
+
+    return list(categories.values())
+
+
+def _average_monthly_spend(spending_history: list[dict]) -> float:
+    monthly_totals: dict[str, float] = {}
+    for row in spending_history:
+        month = row.get("month") or "unknown"
+        monthly_totals[month] = monthly_totals.get(month, 0.0) + float(row.get("total", 0) or 0)
+
+    if not monthly_totals:
+        return 0.0
+    return sum(monthly_totals.values()) / len(monthly_totals)
+
 
 class RuleBasedStrategy(IRecommendationStrategy):
     """
@@ -26,8 +57,7 @@ class RuleBasedStrategy(IRecommendationStrategy):
     async def compute_budget(self, user_id, month, spending_history):
         # Estimate income from last available spending (assume spending = 80% of income)
         if spending_history:
-            total_history_spend = sum(h.get("total", 0) for h in spending_history)
-            avg_spend = total_history_spend / len(spending_history)
+            avg_spend = _average_monthly_spend(spending_history)
             estimated_income = max(50000, avg_spend / 0.80) # Floor at 50k to avoid tiny budgets for new users
         else:
             estimated_income = 50000  # Default INR
@@ -36,9 +66,11 @@ class RuleBasedStrategy(IRecommendationStrategy):
         wants_budget = estimated_income * 0.30
         savings_budget = estimated_income * 0.20
 
+        category_history = _aggregate_history_by_category(spending_history)
+
         # Distribute needs budget across need categories proportionally
-        needs_cats = [h for h in spending_history if h.get("category_id") in NEEDS_CATEGORIES]
-        wants_cats = [h for h in spending_history if h.get("category_id") in WANTS_CATEGORIES]
+        needs_cats = [h for h in category_history if h.get("category_id") in NEEDS_CATEGORIES]
+        wants_cats = [h for h in category_history if h.get("category_id") in WANTS_CATEGORIES]
 
         recommendations = []
 

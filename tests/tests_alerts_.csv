@@ -1,7 +1,8 @@
 date,amount,description,merchant
-2026-04-10,450.00,Lunch at Burger King,Burger King
-2026-04-11,250.00,Coffee at Starbucks,Starbucks
-2026-04-12,600.00,Dinner at Pizza Hut,Pizza Hut
-2026-04-13,300.00,Groceries at Reliance,Reliance
-2026-04-14,500.00,Lunch at Subway,Subway
-2026-04-18,25000.00,Exotic Truffle Dinner,Luxury Dining
+2026-04-10,-450.00,Lunch at Burger King,Burger King
+2026-04-11,-250.00,Coffee at Starbucks,Starbucks
+2026-04-12,-600.00,Dinner at Pizza Hut,Pizza Hut
+2026-04-13,-300.00,Groceries at Reliance,Reliance
+2026-04-14,-500.00,Lunch at Subway,Subway
+2026-04-18,-25000.00,Exotic Truffle Dinner,Luxury Dining
+2026-03-12,-600.00,Dinner at Dominos,Dominos

@@ -26,6 +26,26 @@ def _alert_level(pct: float) -> str:
     return "ok"
 
 
+def _merge_recommendations_by_category(recommendations: list[dict]) -> list[dict]:
+    merged: dict[int, dict] = {}
+    for rec in recommendations:
+        category_id = rec.get("category_id")
+        if category_id is None:
+            continue
+
+        if category_id not in merged:
+            merged[category_id] = {**rec}
+            continue
+
+        existing = merged[category_id]
+        existing["recommended_amount"] = (
+            float(existing.get("recommended_amount", 0) or 0)
+            + float(rec.get("recommended_amount", 0) or 0)
+        )
+
+    return list(merged.values())
+
+
 @router.get("/budget")
 async def get_budget_recommendations(
     month: str = Query(None, description="YYYY-MM format, defaults to current month"),
@@ -164,6 +184,8 @@ async def get_budget_recommendations(
             "months_of_history": months_of_history,
             "recommendations": [],
         }
+
+    raw_recommendations = _merge_recommendations_by_category(raw_recommendations)
 
     # ── 6. Merge: enrich each recommendation with spending + override data ─────
     enriched = []
