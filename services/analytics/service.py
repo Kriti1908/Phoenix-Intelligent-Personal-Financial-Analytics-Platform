@@ -4,7 +4,7 @@ import json
 import logging
 from decimal import Decimal
 import httpx
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy import select, text, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -165,44 +165,118 @@ class AnalyticsService:
             "budget_status": budget_status,
         }
 
+        # Backfill history if needed (e.g., 15-day intervals for 6 months)
+        await self._backfill_historical_fhs(user_id)
+
         # Cache for 30s
         await self.redis.setex(cache_key, 30, json.dumps(overview, default=str))
         return overview
 
-    async def _compute_user_metrics(self, user_id: str) -> dict:
-        """Compute financial health metrics from transaction history."""
-        # Get monthly spending totals for last 6 months
+    async def _backfill_historical_fhs(self, user_id: str):
+        """Ensure FHS scores exist at 15-day intervals for the last 6 months."""
+        # Check existing scores for this user
+        result = await self.db.execute(
+            text("SELECT computed_at FROM financial_health_scores WHERE user_id = :uid ORDER BY computed_at DESC"),
+            {"uid": user_id}
+        )
+        existing_dates = {row.computed_at.date() for row in result.fetchall()}
+        
+        now = datetime.now()
+        # Today's score
+        if now.date() not in existing_dates:
+            await self._compute_and_save_fhs(user_id, now)
+        
+        # Check intervals of 15 days for the last 180 days (approx 6 months)
+        for i in range(15, 181, 15):
+            ref_date = now - timedelta(days=i)
+            if ref_date.date() not in existing_dates:
+                # To be efficient, we only backfill if there's no score within +/- 3 days of this window
+                near_hit = any(abs((d - ref_date.date()).days) <= 3 for d in existing_dates)
+                if not near_hit:
+                    await self._compute_and_save_fhs(user_id, ref_date)
+
+    async def _compute_and_save_fhs(self, user_id: str, ref_date: datetime):
+        """Force compute and save FHS for a specific date."""
+        metrics = await self._compute_user_metrics(user_id, ref_date)
+        processor = FHSProcessor()
+        score = processor.compute(user_id, metrics)
+        
+        await self.db.execute(
+            text(
+                "INSERT INTO financial_health_scores (user_id, score, savings_rate, dti_ratio, spending_volatility, emergency_fund_ratio, computed_at) "
+                "VALUES (:uid, :score, :sr, :dti, :cv, :ef, :ts)"
+            ),
+            {
+                "uid": user_id, 
+                "score": float(score), 
+                "sr": metrics.get("savings_rate"), 
+                "dti": metrics.get("dti_ratio"), 
+                "cv": metrics.get("spending_volatility"), 
+                "ef": metrics.get("emergency_fund_months"), 
+                "ts": ref_date
+            }
+        )
+        await self.db.commit()
+
+    async def _compute_user_metrics(self, user_id: str, ref_date: datetime | None = None) -> dict:
+        """Compute financial health metrics from transaction history as of a specific date."""
+        if ref_date is None:
+            ref_date = datetime.now()
+
+        # Separate monthly income (positive) and expenses (negative) for last 6 months relative to ref_date
         result = await self.db.execute(
             text(
-                "SELECT DATE_TRUNC('month', ts) as month, SUM(amount) as total "
+                "SELECT DATE_TRUNC('month', ts) as month, "
+                "SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END) as income, "
+                "SUM(CASE WHEN amount < 0 THEN ABS(amount) ELSE 0 END) as expenses "
                 "FROM transactions WHERE user_id = :uid "
+                "AND ts <= :ref_date "
                 "GROUP BY DATE_TRUNC('month', ts) ORDER BY month DESC LIMIT 6"
             ),
-            {"uid": user_id},
+            {"uid": user_id, "ref_date": ref_date},
         )
-        monthly_totals = [float(row.total) for row in result.fetchall()]
-
-        if not monthly_totals:
+        rows = result.fetchall()
+        if not rows:
             return {"savings_rate": 0, "dti_ratio": 0, "spending_volatility": 0, "emergency_fund_months": 0}
 
-        avg_monthly = sum(monthly_totals) / len(monthly_totals)
-        estimated_income = avg_monthly * 1.5  # Rough estimate
+        monthly_incomes = [float(row.income) for row in rows]
+        monthly_expenses = [float(row.expenses) for row in rows]
+        
+        total_income = sum(monthly_incomes)
+        total_expenses = sum(monthly_expenses)
+        avg_monthly_expenses = total_expenses / len(monthly_expenses) if monthly_expenses else 0
 
-        savings_rate = max(0, (estimated_income - avg_monthly) / estimated_income) if estimated_income > 0 else 0
+        # Savings Rate Calculation: (Income - Expenses) / Income
+        if total_income > 0:
+            savings_rate = max(0, (total_income - total_expenses) / total_income)
+        else:
+            savings_rate = 0
 
-        # Spending volatility (coefficient of variation)
-        if len(monthly_totals) > 1 and avg_monthly > 0:
-            variance = sum((x - avg_monthly) ** 2 for x in monthly_totals) / len(monthly_totals)
+        # Spending Volatility (CV of expenses)
+        if len(monthly_expenses) > 1 and avg_monthly_expenses > 0:
+            variance = sum((x - avg_monthly_expenses) ** 2 for x in monthly_expenses) / len(monthly_expenses)
             std_dev = variance ** 0.5
-            cv = std_dev / avg_monthly
+            cv = std_dev / avg_monthly_expenses
         else:
             cv = 0
 
+        # Emergency Fund Months: Total Historical Delta (up to ref_date) / Avg Monthly Expenses
+        delta_result = await self.db.execute(
+            text("SELECT SUM(amount) FROM transactions WHERE user_id = :uid AND ts <= :ref_date"),
+            {"uid": user_id, "ref_date": ref_date}
+        )
+        total_delta = float(delta_result.scalar() or 0)
+        
+        if avg_monthly_expenses > 0:
+            ef_months = max(0, total_delta / avg_monthly_expenses)
+        else:
+            ef_months = 0 if total_delta <= 0 else 12.0
+
         return {
-            "savings_rate": round(savings_rate, 4),
-            "dti_ratio": 0.15,  # Default; could be enriched with loan data
-            "spending_volatility": round(cv, 4),
-            "emergency_fund_months": 2.0,  # Default
+            "savings_rate": round(float(savings_rate), 4),
+            "dti_ratio": 0.15,
+            "spending_volatility": round(float(cv), 4),
+            "emergency_fund_months": round(float(ef_months), 2),
         }
 
     async def _get_latest_fhs(self, user_id: str) -> dict:
