@@ -1,5 +1,6 @@
 import { useDashboardOverview, useFHSHistory } from '../api/dashboard'
 import { useSpendingTrends } from '../api/analytics'
+import { useBudgets } from '../api/budgets'
 import { 
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend,
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
@@ -103,6 +104,7 @@ function SpendingPieChart({ data }: { data: Array<{ category: string; amount: nu
               {data.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
             </Pie>
             <Tooltip
+              itemStyle={{ color: 'white' }}
               formatter={(value: number) => [
                 `₹${(value as number).toLocaleString('en-IN')}`,
                 `(${total > 0 ? ((value as number / total) * 100).toFixed(1) : 0}%)`,
@@ -112,6 +114,7 @@ function SpendingPieChart({ data }: { data: Array<{ category: string; amount: nu
                 border: '1px solid var(--border)',
                 borderRadius: 8,
                 fontSize: 13,
+                color: 'white',
               }}
             />
             {/* Legend renders outside SVG — labels never overflow the card */}
@@ -136,30 +139,44 @@ function SpendingPieChart({ data }: { data: Array<{ category: string; amount: nu
   )
 }
 
-function BudgetBars({ budgets }: { budgets: Array<{ category: string; limit: number; spent: number; status: string }> }) {
+function BudgetBars() {
+  const { data, isLoading } = useBudgets()
+
+  if (isLoading) {
+    return (
+      <div className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="spinner" style={{ width: 24, height: 24 }} />
+      </div>
+    )
+  }
+
+  const budgets = data?.recommendations || []
+
   return (
-    <div className="card">
+    <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
       <div className="card-title">Budget Status</div>
       {budgets.length === 0 ? (
         <EmptyState
           icon="💰"
-          title="No budgets configured"
-          description="Visit the Budgets page to set spending limits per category"
+          title="No budgets computed here"
+          description="Wait for transactions to be categorized to see live budgets."
         />
       ) : (
-        <div style={{ display: 'grid', gap: 16 }}>
+        <div style={{ flex: 1, overflowY: 'auto', maxHeight: '250px', paddingRight: '8px', display: 'flex', flexDirection: 'column', gap: 16 }}>
           {budgets.map(b => {
-            const pct = b.limit > 0 ? Math.min((b.spent / b.limit) * 100, 100) : 0
+             // Avoid uncategorized displaying with a budget limit of 0 causing NaN bar overflows
+            if (b.category_id === 0) return null
+
             return (
-              <div key={b.category} className="budget-bar" style={{ marginBottom: 0 }}>
+              <div key={b.category_id} className="budget-bar" style={{ marginBottom: 0 }}>
                 <div className="budget-bar-label">
-                  <span style={{ fontWeight: 500 }}>{b.category}</span>
+                  <span style={{ fontWeight: 500 }}>{b.category_name}</span>
                   <span style={{ color: 'var(--text-secondary)', fontFeatureSettings: '"tnum"' }}>
-                    ₹{b.spent.toLocaleString('en-IN')} / ₹{b.limit.toLocaleString('en-IN')}
+                    ₹{b.current_spending.toLocaleString('en-IN', { maximumFractionDigits: 0 })} / ₹{b.effective_limit.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                   </span>
                 </div>
                 <div className="budget-bar-track">
-                  <div className={`budget-bar-fill ${b.status}`} style={{ width: `${pct}%` }} />
+                  <div className={`budget-bar-fill ${b.alert_level}`} style={{ width: `${Math.min(b.pct_used, 100)}%` }} />
                 </div>
               </div>
             )
@@ -362,7 +379,7 @@ export default function Dashboard() {
       <div className="dashboard-grid">
         <FHSGauge score={data.fhs?.score || 0} dataFreshness={data.fhs?.data_freshness} />
         <SpendingPieChart data={data.categories || []} />
-        <BudgetBars budgets={data.budget_status || []} />
+        <BudgetBars />
         <div className="card">
           <div className="card-title">Quick Stats</div>
           <div style={{ display: 'grid', gap: 20 }}>
