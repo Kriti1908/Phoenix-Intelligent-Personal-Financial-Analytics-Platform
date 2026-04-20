@@ -10,9 +10,9 @@ function alertColor(level: 'ok' | 'warning' | 'over') {
 }
 
 function alertIcon(level: 'ok' | 'warning' | 'over') {
-    if (level === 'over') return '🔴'
-    if (level === 'warning') return '⚠️'
-    return '✅'
+    if (level === 'over') return 'OVER'
+    if (level === 'warning') return 'WARN'
+    return 'OK'
 }
 
 function bucketLabel(bucket?: string) {
@@ -101,7 +101,7 @@ function BudgetCard({ item, month }: { item: BudgetRecommendation; month: string
                             transition: 'border-color 0.2s',
                         }}
                     >
-                        ✏️ Set Limit
+                        Set Limit
                     </button>
                 )}
             </div>
@@ -146,8 +146,8 @@ function BudgetCard({ item, month }: { item: BudgetRecommendation; month: string
                     fontWeight: 500,
                 }}>
                     {alert_level === 'over'
-                        ? `⚠️ Over budget by ₹${fmt(current_spending - effective_limit)}`
-                        : `⚡ Approaching limit — ₹${fmt(effective_limit - current_spending)} remaining`}
+                        ? `Over budget by ₹${fmt(current_spending - effective_limit)}`
+                        : `Approaching limit — ₹${fmt(effective_limit - current_spending)} remaining`}
                 </div>
             )}
 
@@ -222,7 +222,7 @@ export default function Budgets() {
         <div>
             {/* Page header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
-                <h1 className="page-title" style={{ margin: 0 }}>💰 Budget Management</h1>
+                <h1 className="page-title" style={{ margin: 0 }}>Budget Management</h1>
                 <select
                     id="budget-month-select"
                     className="form-select"
@@ -252,7 +252,7 @@ export default function Budgets() {
                             borderRadius: 'var(--radius)', padding: '14px 20px', marginBottom: 16,
                             display: 'flex', alignItems: 'center', gap: 12, animation: 'slideIn 0.3s ease',
                         }}>
-                            <span style={{ fontSize: 20 }}>🔴</span>
+                            <span style={{ fontSize: 20 }}></span>
                             <span style={{ fontWeight: 600 }}>
                                 {overCategories} {overCategories === 1 ? 'category is' : 'categories are'} over budget this month
                             </span>
@@ -265,7 +265,7 @@ export default function Budgets() {
                             borderRadius: 'var(--radius)', padding: '14px 20px', marginBottom: 16,
                             display: 'flex', alignItems: 'center', gap: 12,
                         }}>
-                            <span style={{ fontSize: 20 }}>⚠️</span>
+                            <span style={{ fontSize: 20 }}></span>
                             <span style={{ fontWeight: 600, color: 'var(--accent-amber)' }}>
                                 {warnCategories} {warnCategories === 1 ? 'category is' : 'categories are'} approaching the budget limit
                             </span>
@@ -275,14 +275,14 @@ export default function Budgets() {
                     {/* Strategy + history chips */}
                     <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
                         <div className="badge-chip">
-                            📊 <strong style={{ marginLeft: 4 }}>{data.strategy_used}</strong>
+                             <strong style={{ marginLeft: 4 }}>{data.strategy_used}</strong>
                         </div>
                         <div className="badge-chip">
-                            📅 <strong style={{ marginLeft: 4 }}>{data.months_of_history}mo</strong> history
+                             <strong style={{ marginLeft: 4 }}>{data.months_of_history}mo</strong> history
                         </div>
                         {data.months_of_history < 6 && (
                             <div className="badge-chip warning-chip">
-                                ⚡ 6+ months needed for statistical budgets
+                                6+ months needed for statistical budgets
                             </div>
                         )}
                     </div>
@@ -314,7 +314,7 @@ export default function Budgets() {
                     {/* Budget cards grid */}
                     {!data.recommendations || data.recommendations.length === 0 ? (
                         <div className="empty-state">
-                            <div className="empty-state-icon">💰</div>
+                            <div className="empty-state-icon"></div>
                             <h2>No Budget Data Yet</h2>
                             <p>Upload transactions and wait for the analytics engine to categorize them — budget recommendations will appear here.</p>
                         </div>

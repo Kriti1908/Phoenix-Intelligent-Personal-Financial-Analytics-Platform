@@ -39,13 +39,13 @@ export default function CSVUpload({ onClose }: Props) {
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal" onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
-                    <span>📤 Upload CSV</span>
+                    <span>Upload CSV</span>
                     <button className="modal-close" onClick={onClose}>✕</button>
                 </div>
 
                 {result ? (
                     <div style={{ textAlign: 'center', padding: '24px 0' }}>
-                        <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
+                        <div style={{ fontSize: 48, marginBottom: 12 }}></div>
                         <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--accent-green)', marginBottom: 8 }}>
                             Upload Complete
                         </div>
@@ -85,7 +85,7 @@ export default function CSVUpload({ onClose }: Props) {
                                     </div>
                                 ) : (
                                     <>
-                                        <div style={{ fontSize: 40, marginBottom: 12 }}>📁</div>
+                                        <div style={{ fontSize: 40, marginBottom: 12 }}></div>
                                         <div style={{ fontWeight: 600, marginBottom: 6 }}>Drag &amp; drop your CSV here</div>
                                         <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>or click to browse</div>
                                     </>
