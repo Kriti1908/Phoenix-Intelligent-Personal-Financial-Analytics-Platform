@@ -48,12 +48,15 @@ async def register(req: RegisterRequest, db: AsyncSession = Depends(get_db)):
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Email already registered")
 
+    import anyio
+    hashed_pw = await anyio.to_thread.run_sync(hash_password, req.password)
+
     # Create user
     user = User(
         email=req.email,
         email_hash=email_hash,
         display_name=req.display_name,
-        password_hash=hash_password(req.password),
+        password_hash=hashed_pw,
         role="USER",
         encryption_key_ref=f"key-{uuid.uuid4().hex[:12]}",
     )
@@ -77,7 +80,9 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email_hash == email_hash))
     user = result.scalar_one_or_none()
 
-    if not user or not verify_password(req.password, user.password_hash):
+    import anyio
+
+    if not user or not await anyio.to_thread.run_sync(verify_password, req.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     if user.deleted_at:

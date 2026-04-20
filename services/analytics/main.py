@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 DATABASE_URL = os.environ["DATABASE_URL"]
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 
-engine = create_async_engine(DATABASE_URL, echo=False, pool_size=20, max_overflow=10)
+engine = create_async_engine(DATABASE_URL, echo=False, pool_size=100, max_overflow=400)
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 redis_client: aioredis.Redis | None = None
 

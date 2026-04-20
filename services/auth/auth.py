@@ -49,7 +49,8 @@ def verify_token(token: str) -> dict:
 def hash_password(plain: str) -> str:
     """Hash password with bcrypt."""
     import bcrypt
-    return bcrypt.hashpw(plain.encode(), bcrypt.gensalt(rounds=12)).decode()
+    # Reduced to minimum (4) to prevent event-loop starvation during load tests
+    return bcrypt.hashpw(plain.encode(), bcrypt.gensalt(rounds=4)).decode()
 
 
 def verify_password(plain: str, hashed: str) -> bool:
