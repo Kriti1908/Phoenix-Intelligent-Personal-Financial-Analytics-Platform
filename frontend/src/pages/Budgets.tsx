@@ -10,9 +10,9 @@ function alertColor(level: 'ok' | 'warning' | 'over') {
 }
 
 function alertIcon(level: 'ok' | 'warning' | 'over') {
-    if (level === 'over') return 'OVER'
-    if (level === 'warning') return 'WARN'
-    return 'OK'
+    if (level === 'over') return '❗'
+    if (level === 'warning') return '⚠️'
+    return '✅'
 }
 
 function bucketLabel(bucket?: string) {
@@ -275,21 +275,25 @@ export default function Budgets() {
                     {/* Strategy + history chips */}
                     <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
                         <div className="badge-chip">
-                             <strong style={{ marginLeft: 4 }}>{data.strategy_used}</strong>
+                             <strong style={{ marginLeft: 4 }}>{data.strategy_used === 'proportional_income' ? 'Proportional Income Strategy' : data.strategy_used}</strong>
                         </div>
                         <div className="badge-chip">
                              <strong style={{ marginLeft: 4 }}>{data.months_of_history}mo</strong> history
                         </div>
-                        {data.months_of_history < 6 && (
-                            <div className="badge-chip warning-chip">
-                                6+ months needed for statistical budgets
-                            </div>
-                        )}
+                        <div className="badge-chip">
+                             50/30/20 guardrails
+                        </div>
                     </div>
 
                     {/* Summary totals card */}
                     {data.recommendations.length > 0 && (
                         <div className="card" style={{ marginBottom: 20, display: 'flex', gap: 32, flexWrap: 'wrap' }}>
+                            {data.current_month_income > 0 && (
+                                <div>
+                                    <div className="stat-value" style={{ fontSize: 22, color: 'var(--accent-primary)' }}>₹{fmt(data.current_month_income)}</div>
+                                    <div className="stat-label">Monthly Income</div>
+                                </div>
+                            )}
                             <div>
                                 <div className="stat-value" style={{ fontSize: 22 }}>₹{fmt(totalSpent)}</div>
                                 <div className="stat-label">Total Spent</div>

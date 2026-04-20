@@ -19,6 +19,7 @@ export interface BudgetResponse {
     month: string
     strategy_used: string
     months_of_history: number
+    current_month_income: number
     recommendations: BudgetRecommendation[]
 }
 

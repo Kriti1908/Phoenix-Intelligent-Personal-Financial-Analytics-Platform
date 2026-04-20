@@ -87,7 +87,7 @@ async def get_budget_recommendations(
         months_of_history = 0
 
     # ── 2. Load full spending history (all months) for strategy computation ────
-    # Only available for categorized transactions (requires analytics pipeline to have run)
+    # Only expenditure (amount < 0) is considered spending; income (amount > 0) handled separately
     try:
         result = await db.execute(
             text(
@@ -96,7 +96,7 @@ async def get_budget_recommendations(
                 "FROM transactions t "
                 "JOIN transaction_categories tc ON t.id = tc.transaction_id "
                 "JOIN categories c ON tc.category_id = c.id "
-                "WHERE t.user_id = :uid "
+                "WHERE t.user_id = :uid AND t.amount < 0 "
                 "GROUP BY tc.category_id, c.name, DATE_TRUNC('month', t.ts) "
                 "ORDER BY month DESC"
             ),
@@ -115,12 +115,40 @@ async def get_budget_recommendations(
         logger.error(f"Error loading spending history: {e}")
         spending_history = []
 
+    # ── 2b. Load full income history (all positive transactions) ───────────────
+    try:
+        result = await db.execute(
+            text(
+                "SELECT DATE_TRUNC('month', ts) as month, SUM(amount) as income "
+                "FROM transactions "
+                "WHERE user_id = :uid AND amount > 0 "
+                "GROUP BY DATE_TRUNC('month', ts)"
+            ),
+            {"uid": x_user_id},
+        )
+        past_income = 0.0
+        current_month_income = 0.0
+        
+        target_month_str = str(month_start_dt)
+        for row in result.fetchall():
+            row_month_str = str(row.month).split(" ")[0]
+            if row_month_str == target_month_str:
+                current_month_income += float(row.income)
+            else:
+                past_income += float(row.income)
+                
+    except Exception as e:
+        logger.error(f"Error loading income history: {e}")
+        past_income = 0.0
+        current_month_income = 0.0
+
     # If no spending history at all, return empty recommendations gracefully
     if not spending_history and months_of_history == 0:
         return {
             "month": month,
-            "strategy_used": "none",
+            "strategy_used": "proportional_income",
             "months_of_history": 0,
+            "current_month_income": round(current_month_income, 2),
             "recommendations": [],
         }
 
@@ -169,10 +197,13 @@ async def get_budget_recommendations(
         logger.error(f"Error loading saved overrides: {e}")
         saved_overrides = {}
 
-    # ── 5. Compute recommendations via strategy ────────────────────────────────
     try:
         strategy = engine.get_strategy(months_of_history)
-        raw_recommendations = await strategy.compute_budget(x_user_id, month, spending_history)
+        raw_recommendations = await strategy.compute_budget(
+            x_user_id, month, spending_history,
+            past_income=past_income,
+            current_income=current_month_income
+        )
     except Exception as e:
         logger.error(f"Error computing budget strategy: {e}")
         raw_recommendations = []
@@ -180,8 +211,9 @@ async def get_budget_recommendations(
     if not raw_recommendations:
         return {
             "month": month,
-            "strategy_used": "statistical_p25" if months_of_history >= 6 else "50/30/20",
+            "strategy_used": "proportional_income",
             "months_of_history": months_of_history,
+            "current_month_income": round(current_month_income, 2),
             "recommendations": [],
         }
 
@@ -239,8 +271,9 @@ async def get_budget_recommendations(
 
     return {
         "month": month,
-        "strategy_used": "statistical_p25" if months_of_history >= 6 else "50/30/20",
+        "strategy_used": "proportional_income",
         "months_of_history": months_of_history,
+        "current_month_income": round(current_month_income, 2),
         "recommendations": enriched,
     }
 
