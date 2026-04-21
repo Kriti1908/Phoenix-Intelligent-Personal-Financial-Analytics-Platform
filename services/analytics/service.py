@@ -1,4 +1,5 @@
-"""AnalyticsService — orchestrates categorization, FHS computation, caching, and ClickHouse writes."""
+"""AnalyticsService — orchestrates categorization, FHS computation, caching,
+ClickHouse dual-writes, and OLAP reads (ADR-002 polyglot persistence)."""
 
 import json
 import logging
@@ -44,15 +45,19 @@ class AnalyticsService:
         """
         Main analytics pipeline triggered after transaction ingestion:
         1. Categorize each new transaction
-        2. Recompute FHS
-        3. Invalidate cache
-        4. Write to ClickHouse (async)
+        2. Mirror categorized transactions to ClickHouse (OLAP layer)
+        3. Recompute FHS
+        4. Invalidate cache
+        5. Write FHS to ClickHouse (async)
+        6. Notify Anomaly Detection Service
         """
         # 1. Load and categorize new transactions
         categorized = 0
+        categorized_txns = []  # Track for ClickHouse mirroring
         for txn_id in transaction_ids:
             row = await self.db.execute(
-                text("SELECT id, raw_description, mcc_code, merchant_name FROM transactions WHERE id = :id"),
+                text("SELECT id, raw_description, mcc_code, merchant_name, amount, currency, ts "
+                     "FROM transactions WHERE id = :id"),
                 {"id": txn_id},
             )
             txn = row.fetchone()
@@ -78,12 +83,28 @@ class AnalyticsService:
                 },
             )
             categorized += 1
+            categorized_txns.append({
+                "id": str(txn.id), "amount": float(txn.amount),
+                "currency": txn.currency, "category_id": result.category_id,
+                "ts": str(txn.ts),
+            })
 
-        # 2. Compute FHS
+        # 2. Mirror categorized transactions to ClickHouse (OLAP layer)
+        #    Populates the phoenix.transactions table used for analytical trend queries.
+        #    This is the key dual-write that enables OLAP/OLTP separation (ADR-002).
+        if self.ch_writer and categorized_txns:
+            for ct in categorized_txns:
+                await self.ch_writer.write_transaction(
+                    txn_id=ct["id"], user_id=user_id, amount=ct["amount"],
+                    currency=ct["currency"], category_id=ct["category_id"],
+                    ts=ct["ts"],
+                )
+
+        # 3. Compute FHS
         metrics = await self._compute_user_metrics(user_id)
         fhs_score = self.fhs_processor.compute(user_id, metrics)
 
-        # Persist FHS (append-only)
+        # Persist FHS (append-only) to PostgreSQL (source of truth)
         await self.db.execute(
             text(
                 "INSERT INTO financial_health_scores "
@@ -101,11 +122,11 @@ class AnalyticsService:
         )
         await self.db.commit()
 
-        # 3. Invalidate cache
+        # 4. Invalidate cache
         current_month = datetime.utcnow().strftime("%Y-%m")
         await self.cache_invalidator.invalidate_user(user_id, current_month)
 
-        # 4. Write to ClickHouse (async, fire-and-forget)
+        # 5. Write FHS to ClickHouse (async, fire-and-forget)
         if self.ch_writer:
             await self.ch_writer.write_fhs(
                 user_id,
@@ -117,7 +138,7 @@ class AnalyticsService:
                 },
             )
 
-        # 5. Notify Anomaly Detection Service (Observer chain continuation)
+        # 6. Notify Anomaly Detection Service (Observer chain continuation)
         if self.anomaly_service_url and categorized > 0:
             await self._notify_anomaly_service(user_id, transaction_ids)
 
@@ -142,7 +163,7 @@ class AnalyticsService:
     async def get_dashboard_overview(self, user_id: str) -> dict:
         """
         FACADE PATTERN: Single endpoint aggregating data from multiple sources.
-        Redis cache → ClickHouse/PostgreSQL fallback.
+        Redis cache → ClickHouse (OLAP) → PostgreSQL (OLTP fallback).
         """
         # Check cache first
         cache_key = f"dashboard:{user_id}:overview"
@@ -171,6 +192,103 @@ class AnalyticsService:
         # Cache for 30s
         await self.redis.setex(cache_key, 30, json.dumps(overview, default=str))
         return overview
+
+    # ── ClickHouse OLAP Read Methods (with PostgreSQL fallback) ─────────────
+
+    async def get_fhs_history_from_clickhouse(self, user_id: str, limit: int = 12) -> dict:
+        """
+        Read FHS score time-series from ClickHouse (OLAP).
+        Falls back to PostgreSQL if ClickHouse is unavailable.
+        Returns {"data": [...], "data_source": "clickhouse"|"postgresql"}.
+        """
+        # Try ClickHouse first (OLAP — columnar scan, partitioned by month)
+        if self.ch_writer:
+            rows = await self.ch_writer.query_fhs_history(user_id, limit)
+            if rows:
+                return {
+                    "data": [
+                        {
+                            "score": float(r.get("score", 0)),
+                            "savings_rate": float(r.get("savings_rate", 0)),
+                            "dti_ratio": float(r.get("dti_ratio", 0)),
+                            "spending_volatility": float(r.get("spending_volatility", 0)),
+                            "computed_at": r.get("computed_at"),
+                        }
+                        for r in rows
+                    ],
+                    "data_source": "clickhouse",
+                }
+
+        # Fallback: PostgreSQL (OLTP)
+        result = await self.db.execute(
+            text(
+                "SELECT score, savings_rate, dti_ratio, spending_volatility, computed_at "
+                "FROM financial_health_scores "
+                "WHERE user_id = :uid ORDER BY computed_at DESC LIMIT :limit"
+            ),
+            {"uid": user_id, "limit": limit},
+        )
+        return {
+            "data": [
+                {
+                    "score": float(row.score),
+                    "savings_rate": float(row.savings_rate) if row.savings_rate else None,
+                    "dti_ratio": float(row.dti_ratio) if row.dti_ratio else None,
+                    "spending_volatility": float(row.spending_volatility) if row.spending_volatility else None,
+                    "computed_at": str(row.computed_at),
+                }
+                for row in result.fetchall()
+            ],
+            "data_source": "postgresql",
+        }
+
+    async def get_spending_trends_from_clickhouse(self, user_id: str, months: int = 6) -> dict:
+        """
+        Read spending trends from ClickHouse (OLAP) with PostgreSQL fallback.
+        ClickHouse advantage: columnar scan on (amount, ts) without touching other columns.
+        Returns {"data": [...], "data_source": "clickhouse"|"postgresql"}.
+        """
+        # Try ClickHouse first
+        if self.ch_writer:
+            rows = await self.ch_writer.query_spending_trends(user_id, months)
+            if rows:
+                result_data = []
+                prev_total = None
+                for r in rows:
+                    total = float(r.get("total", 0))
+                    mom_change = None
+                    if prev_total and prev_total > 0:
+                        mom_change = round((total - prev_total) / prev_total * 100, 2)
+                    result_data.append({
+                        "month": str(r.get("month", ""))[:7],  # YYYY-MM
+                        "total": total,
+                        "count": int(r.get("tx_count", 0)),
+                        "mom_change_percent": mom_change,
+                    })
+                    prev_total = total
+                return {"data": result_data, "data_source": "clickhouse"}
+
+        # Fallback: PostgreSQL (OLTP) — uses TrendAnalyzer
+        result = await self.db.execute(
+            text(
+                "SELECT t.amount, t.currency, t.ts, COALESCE(c.name, 'Other') as category_name "
+                "FROM transactions t "
+                "LEFT JOIN transaction_categories tc ON t.id = tc.transaction_id "
+                "LEFT JOIN categories c ON tc.category_id = c.id "
+                "WHERE t.user_id = :uid "
+                "AND t.ts >= CURRENT_DATE - (INTERVAL '1 month' * :months) "
+                "ORDER BY t.ts"
+            ),
+            {"uid": user_id, "months": months},
+        )
+        txns = [
+            {
+                "amount": float(row.amount), "currency": row.currency,
+                "ts": row.ts, "category_name": row.category_name,
+            }
+            for row in result.fetchall()
+        ]
+        return {"data": self.trend_analyzer.compute(txns, months), "data_source": "postgresql"}
 
     async def _backfill_historical_fhs(self, user_id: str):
         """Ensure FHS scores exist at 15-day intervals for the last 6 months."""

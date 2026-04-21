@@ -84,31 +84,14 @@ async def fhs_history(
     request: Request,
     months: int = Query(6, ge=1, le=24),
     user_id: str = Depends(_require_user_id),
+    service: AnalyticsService = Depends(get_analytics_service),
 ):
-    """Get FHS score history for the last N months."""
-    get_db_for_user = request.app.state.get_db_for_user
-    db_factory = get_db_for_user(user_id)
-    db_gen = db_factory()
-    db: AsyncSession = await db_gen.__anext__()
-
-    result = await db.execute(
-        text(
-            "SELECT score, savings_rate, dti_ratio, spending_volatility, computed_at "
-            "FROM financial_health_scores "
-            "WHERE user_id = :uid ORDER BY computed_at DESC LIMIT :limit"
-        ),
-        {"uid": user_id, "limit": months},
-    )
-    return [
-        {
-            "score": float(row.score),
-            "savings_rate": float(row.savings_rate) if row.savings_rate else None,
-            "dti_ratio": float(row.dti_ratio) if row.dti_ratio else None,
-            "spending_volatility": float(row.spending_volatility) if row.spending_volatility else None,
-            "computed_at": str(row.computed_at),
-        }
-        for row in result.fetchall()
-    ]
+    """
+    Get FHS score history for the last N months.
+    ADR-002: Routes to ClickHouse (OLAP) first, falls back to PostgreSQL (OLTP).
+    Response includes 'data_source' to indicate which database served the query.
+    """
+    return await service.get_fhs_history_from_clickhouse(user_id, limit=months)
 
 
 @router.get("/categories")
@@ -126,33 +109,11 @@ async def spending_trends(
     request: Request,
     months: int = Query(6, ge=1, le=24),
     user_id: str = Depends(_require_user_id),
+    service: AnalyticsService = Depends(get_analytics_service),
 ):
-    """Get monthly spending trends."""
-    get_db_for_user = request.app.state.get_db_for_user
-    db_factory = get_db_for_user(user_id)
-    db_gen = db_factory()
-    db: AsyncSession = await db_gen.__anext__()
-
-    result = await db.execute(
-        text(
-            "SELECT t.amount, t.currency, t.ts, COALESCE(c.name, 'Other') as category_name "
-            "FROM transactions t "
-            "LEFT JOIN transaction_categories tc ON t.id = tc.transaction_id "
-            "LEFT JOIN categories c ON tc.category_id = c.id "
-            "WHERE t.user_id = :uid "
-            "AND t.ts >= CURRENT_DATE - (INTERVAL '1 month' * :months) "
-            "ORDER BY t.ts"
-        ),
-        {"uid": user_id, "months": months},
-    )
-    analyzer = TrendAnalyzer()
-    txns = [
-        {
-            "amount": float(row.amount),
-            "currency": row.currency,
-            "ts": row.ts,
-            "category_name": row.category_name
-        }
-        for row in result.fetchall()
-    ]
-    return analyzer.compute(txns, months)
+    """
+    Get monthly spending trends.
+    ADR-002: Routes to ClickHouse (OLAP) first, falls back to PostgreSQL (OLTP).
+    Response includes 'data_source' to indicate which database served the query.
+    """
+    return await service.get_spending_trends_from_clickhouse(user_id, months)
